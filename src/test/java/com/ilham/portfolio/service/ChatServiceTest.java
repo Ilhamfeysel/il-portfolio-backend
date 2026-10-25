@@ -6,17 +6,26 @@ import com.ilham.portfolio.dto.ChatResponse;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.*;
 
 class ChatServiceTest {
 
-    private final ChatService chatService = new ChatService();
-
     @Test
-    void shouldReturnReplyForValidMessage() {
+    void shouldReturnAiGeneratedReply() {
+
+        AiService aiService = mock(AiService.class);
+
+        when(aiService.generateReply("Hello"))
+                .thenReturn("Hello! How can I help you?");
+
+        ChatService chatService = new ChatService(aiService);
+
         ChatRequest request = new ChatRequest("Hello");
 
         ChatResponse response = chatService.sendMessage(request);
 
-        assertEquals("You asked: Hello", response.reply());
+        assertEquals("Hello! How can I help you?", response.reply());
+
+        verify(aiService).generateReply("Hello");
     }
 }
