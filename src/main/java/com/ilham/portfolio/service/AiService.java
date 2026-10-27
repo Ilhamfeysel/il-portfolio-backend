@@ -1,9 +1,11 @@
 package com.ilham.portfolio.service;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -11,32 +13,51 @@ import java.util.Map;
 public class AiService {
 
     private final RestClient restClient;
-    private  final  String apiKey;
-    public AiService(@Value("${gemini.api.key}") String apiKey) {
+    private final String apiKey;
+    private final String portfolioContext;
+
+    public AiService(@Value("${gemini.api.key}") String apiKey) throws java.io.IOException {
         this.apiKey = apiKey;
 
         this.restClient = RestClient.builder()
                 .baseUrl("https://generativelanguage.googleapis.com")
                 .build();
+
+        ClassPathResource resource = new ClassPathResource("portfolio-context.txt");
+
+        this.portfolioContext = new String(
+                resource.getInputStream().readAllBytes(),
+                StandardCharsets.UTF_8
+        );
     }
 
     public String generateReply(String message) {
 
         Map<String, Object> requestBody = Map.of(
+                "systemInstruction", Map.of(
+                        "parts", List.of(
+                                Map.of("text", portfolioContext)
+                        )
+                ),
                 "contents", List.of(
-                        Map.of("parts", List.of(
-                                Map.of("text", message)
-                        ))
+                        Map.of(
+                                "role", "user",
+                                "parts", List.of(
+                                        Map.of("text", message)
+                                )
+                        )
                 )
         );
 
-        Map response = restClient.post()
-                .uri("/v1beta/models/gemini-2.5-flash:generateContent")
+        // Send the request to Gemini
+        Map<?, ?> response = restClient.post()
+                .uri("/v1beta/models/gemini-3.5-flash-lite:generateContent")
                 .header("x-goog-api-key", apiKey)
                 .body(requestBody)
                 .retrieve()
                 .body(Map.class);
 
+        // Check if Gemini returned a response
         if (response == null) {
             throw new IllegalStateException("Empty response from Gemini");
         }
@@ -47,6 +68,7 @@ public class AiService {
             throw new IllegalStateException("Gemini returned no candidates");
         }
 
+        // Extract the AI-generated reply
         Map<?, ?> candidate = (Map<?, ?>) candidates.get(0);
         Map<?, ?> content = (Map<?, ?>) candidate.get("content");
         List<?> parts = (List<?>) content.get("parts");
@@ -55,3 +77,4 @@ public class AiService {
         return (String) firstPart.get("text");
     }
 }
+
