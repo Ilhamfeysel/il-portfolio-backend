@@ -3,6 +3,7 @@ package com.ilham.portfolio.service;
 
 import com.ilham.portfolio.dto.ChatRequest;
 import com.ilham.portfolio.dto.ChatResponse;
+import com.ilham.portfolio.storage.ConversationStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -23,7 +24,10 @@ class ChatServiceTest {
     @BeforeEach
     void setUp() {
         aiService = mock(AiService.class);
-        chatService = new ChatService(aiService);
+        ConversationStore conversationStore =
+                new ConversationStore();
+
+        chatService = new ChatService(aiService, conversationStore);
 
         when(aiService.createMessage(anyString(), anyString()))
                 .thenAnswer(invocation -> {

@@ -13,6 +13,20 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+
+    @ExceptionHandler(ConversationCapacityException.class)
+    public ResponseEntity<Map<String, String>> handleConversationCapacity(
+            ConversationCapacityException exception) {
+
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of(
+                        "error",
+                        "The chat service is currently busy. Please try again later."
+                ));
+    }
+
+
     // Handle invalid messages, such as empty input
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidation(
@@ -55,6 +69,9 @@ public class GlobalExceptionHandler {
                         "error",
                         "Something went wrong. Please try again later."
                 ));
+
+
+
     }
 }
 

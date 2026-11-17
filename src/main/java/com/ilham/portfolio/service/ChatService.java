@@ -3,13 +3,14 @@ package com.ilham.portfolio.service;
 
 import com.ilham.portfolio.dto.ChatRequest;
 import com.ilham.portfolio.dto.ChatResponse;
+import com.ilham.portfolio.storage.ConversationStore;
+import com.ilham.portfolio.storage.ConversationStore.Conversation;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class ChatService {
@@ -17,32 +18,40 @@ public class ChatService {
     private static final int MAX_HISTORY_MESSAGES = 10;
 
     private final AiService aiService;
+    private final ConversationStore conversationStore;
 
-    private final Map<String, List<Map<String, Object>>> conversations =
-            new ConcurrentHashMap<>();
+    public ChatService(
+            AiService aiService,
+            ConversationStore conversationStore) {
 
-    public ChatService(AiService aiService) {
         this.aiService = aiService;
+        this.conversationStore = conversationStore;
     }
 
     public ChatResponse sendMessage(ChatRequest request) {
 
         String conversationId = request.conversationId();
 
-        // Create a new conversation if the ID is missing or unknown
-        if (conversationId == null
-                || !conversations.containsKey(conversationId)) {
+        Conversation conversation = conversationId == null
+                ? null
+                : conversationStore.get(conversationId);
+
+        // Create a new conversation when the ID is missing or expired
+        if (conversation == null) {
 
             conversationId = UUID.randomUUID().toString();
-            conversations.put(conversationId, new ArrayList<>());
+
+            conversation = conversationStore.createConversation();
+
+            conversationStore.save(conversationId, conversation);
         }
 
-        List<Map<String, Object>> history =
-                conversations.get(conversationId);
+        synchronized (conversation) {
 
-        synchronized (history) {
+            List<Map<String, Object>> history =
+                    conversation.getMessages();
 
-            // Prepare messages without changing stored history yet
+            // Prepare the messages for Gemini
             List<Map<String, Object>> messages =
                     new ArrayList<>(history);
 
@@ -50,11 +59,11 @@ public class ChatService {
                     aiService.createMessage("user", request.message())
             );
 
-            // Send conversation history to Gemini
+            // Ask Gemini for a reply
             String reply =
                     aiService.generateReplyWithHistory(messages);
 
-            // Save messages only after Gemini succeeds
+            // Save the successful exchange
             history.add(
                     aiService.createMessage("user", request.message())
             );
@@ -63,15 +72,19 @@ public class ChatService {
                     aiService.createMessage("model", reply)
             );
 
-            // Keep only the latest messages
+            // Keep only the latest 10 messages
             while (history.size() > MAX_HISTORY_MESSAGES) {
                 history.remove(0);
             }
+
+            // Reset inactivity timer
+            conversationStore.updateActivity(conversation);
 
             return new ChatResponse(reply, conversationId);
         }
     }
 }
+
 
 
 
