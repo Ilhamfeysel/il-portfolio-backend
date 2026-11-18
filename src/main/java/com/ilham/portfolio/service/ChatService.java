@@ -1,4 +1,3 @@
-
 package com.ilham.portfolio.service;
 
 import com.ilham.portfolio.dto.ChatRequest;
@@ -34,54 +33,63 @@ public class ChatService {
 
         Conversation conversation = conversationId == null
                 ? null
-                : conversationStore.get(conversationId);
+                : conversationStore.acquire(conversationId);
 
         // Create a new conversation when the ID is missing or expired
+
         if (conversation == null) {
-
             conversationId = UUID.randomUUID().toString();
-
             conversation = conversationStore.createConversation();
 
-            conversationStore.save(conversationId, conversation);
+            conversation.beginRequest();
+
+            try {
+                conversationStore.save(conversationId, conversation);
+            } catch (RuntimeException exception) {
+                conversation.endRequest();
+                throw exception;
+            }
         }
+
 
         synchronized (conversation) {
 
-            List<Map<String, Object>> history =
-                    conversation.getMessages();
+            try {
+                List<Map<String, Object>> history =
+                        conversation.getMessages();
 
-            // Prepare the messages for Gemini
-            List<Map<String, Object>> messages =
-                    new ArrayList<>(history);
+                List<Map<String, Object>> messages =
+                        new ArrayList<>(history);
 
-            messages.add(
-                    aiService.createMessage("user", request.message())
-            );
+                messages.add(
+                        aiService.createMessage("user", request.message())
+                );
 
-            // Ask Gemini for a reply
-            String reply =
-                    aiService.generateReplyWithHistory(messages);
+                String reply =
+                        aiService.generateReplyWithHistory(messages);
 
-            // Save the successful exchange
-            history.add(
-                    aiService.createMessage("user", request.message())
-            );
+                history.add(
+                        aiService.createMessage("user", request.message())
+                );
 
-            history.add(
-                    aiService.createMessage("model", reply)
-            );
+                history.add(
+                        aiService.createMessage("model", reply)
+                );
 
-            // Keep only the latest 10 messages
-            while (history.size() > MAX_HISTORY_MESSAGES) {
-                history.remove(0);
+                while (history.size() > MAX_HISTORY_MESSAGES) {
+                    history.remove(0);
+                }
+
+                conversationStore.updateActivity(conversation);
+
+                return new ChatResponse(reply, conversationId);
+
+            } finally {
+                conversation.endRequest();
             }
-
-            // Reset inactivity timer
-            conversationStore.updateActivity(conversation);
-
-            return new ChatResponse(reply, conversationId);
         }
+
+
     }
 }
 

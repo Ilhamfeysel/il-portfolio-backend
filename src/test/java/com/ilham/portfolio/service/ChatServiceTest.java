@@ -10,6 +10,10 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -172,5 +176,120 @@ class ChatServiceTest {
 
         return (String) firstPart.get("text");
     }
+
+
+    @Test
+    void shouldHandleConcurrentRequestsToSameConversation() throws Exception {
+
+        when(aiService.generateReplyWithHistory(anyList()))
+                .thenReturn("AI response");
+
+        // Create an initial conversation
+        ChatResponse initial = chatService.sendMessage(
+                new ChatRequest("Hello", null)
+        );
+
+        String conversationId = initial.conversationId();
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            Callable<ChatResponse> firstRequest = () ->
+                    chatService.sendMessage(
+                            new ChatRequest("First message", conversationId)
+                    );
+
+            Callable<ChatResponse> secondRequest = () ->
+                    chatService.sendMessage(
+                            new ChatRequest("Second message", conversationId)
+                    );
+
+            List<Future<ChatResponse>> results =
+                    executor.invokeAll(
+                            List.of(firstRequest, secondRequest)
+                    );
+
+            for (Future<ChatResponse> result : results) {
+                assertEquals(
+                        conversationId,
+                        result.get().conversationId()
+                );
+            }
+
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+
+    @Test
+    void shouldPreserveHistoryAfterConcurrentRequests() throws Exception {
+
+        when(aiService.generateReplyWithHistory(anyList()))
+                .thenReturn("AI response");
+
+        ChatResponse initial = chatService.sendMessage(
+                new ChatRequest("Hello", null)
+        );
+
+        String conversationId = initial.conversationId();
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            Callable<ChatResponse> first = () ->
+                    chatService.sendMessage(
+                            new ChatRequest("First message", conversationId)
+                    );
+
+            Callable<ChatResponse> second = () ->
+                    chatService.sendMessage(
+                            new ChatRequest("Second message", conversationId)
+                    );
+
+            List<Future<ChatResponse>> results =
+                    executor.invokeAll(List.of(first, second));
+
+            for (Future<ChatResponse> result : results) {
+                assertEquals(conversationId, result.get().conversationId());
+            }
+
+        } finally {
+            executor.shutdownNow();
+        }
+
+        // Send another message to inspect the accumulated history
+        chatService.sendMessage(
+                new ChatRequest("Final message", conversationId)
+        );
+
+        ArgumentCaptor<List<Map<String, Object>>> captor =
+                ArgumentCaptor.forClass(List.class);
+
+        verify(aiService, times(4))
+                .generateReplyWithHistory(captor.capture());
+
+        List<Map<String, Object>> finalHistory =
+                captor.getAllValues().get(3);
+
+        List<String> userMessages = finalHistory.stream()
+                .filter(message -> "user".equals(message.get("role")))
+                .map(message -> {
+                    List<Map<String, Object>> parts =
+                            (List<Map<String, Object>>) message.get("parts");
+
+                    return (String) parts.get(0).get("text");
+                })
+                .toList();
+
+        assertTrue(userMessages.contains("Hello"));
+        assertTrue(userMessages.contains("First message"));
+        assertTrue(userMessages.contains("Second message"));
+        assertTrue(userMessages.contains("Final message"));
+    }
+
+
+
+
 }
 

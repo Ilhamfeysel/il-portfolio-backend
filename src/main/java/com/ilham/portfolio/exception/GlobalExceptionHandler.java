@@ -69,10 +69,25 @@ public class GlobalExceptionHandler {
                         "error",
                         "Something went wrong. Please try again later."
                 ));
-
-
-
     }
+
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<Map<String, String>> handleRateLimit(
+            RateLimitExceededException exception) {
+
+        return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(Map.of(
+                        "error",
+                        "Too many requests. Please try again later."
+                ));
+    }
+
+
+
+
+
 }
 
 

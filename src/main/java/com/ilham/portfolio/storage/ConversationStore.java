@@ -48,6 +48,26 @@ public class ConversationStore {
         return conversation;
     }
 
+
+    public synchronized Conversation acquire(String conversationId) {
+
+        Conversation conversation = conversations.get(conversationId);
+
+        if (conversation == null) {
+            return null;
+        }
+
+        if (conversation.isExpired(clock)) {
+            conversations.remove(conversationId, conversation);
+            return null;
+        }
+
+        conversation.beginRequest();
+
+        return conversation;
+    }
+
+
     public boolean isFull() {
 
         removeExpired();
@@ -76,8 +96,10 @@ public class ConversationStore {
     }
 
 
+
     @Scheduled(fixedDelay = 300_000)
-    public void removeExpired() {
+    public synchronized void removeExpired() {
+
         conversations.entrySet().removeIf(
                 entry -> entry.getValue().isExpired(clock)
         );
@@ -94,6 +116,7 @@ public class ConversationStore {
 
         private final List<Map<String, Object>> messages;
         private Instant lastActivity;
+        private int activeRequests = 0;
 
         public Conversation(
                 List<Map<String, Object>> messages,
@@ -111,11 +134,32 @@ public class ConversationStore {
             lastActivity = Instant.now(clock);
         }
 
-        public boolean isExpired(Clock clock) {
-            return !Instant.now(clock).isBefore(
-                    lastActivity.plus(EXPIRATION)
-            );
+        public synchronized boolean isExpired(Clock clock) {
+
+            if (activeRequests > 0) {
+                return false;
+            }
+
+            return !Instant.now(clock)
+                    .isBefore(lastActivity.plus(EXPIRATION));
         }
+
+
+
+        public synchronized void beginRequest() {
+            activeRequests++;
+        }
+
+        public synchronized void endRequest() {
+            if (activeRequests > 0) {
+                activeRequests--;
+            }
+        }
+
+        public synchronized boolean hasActiveRequests() {
+            return activeRequests > 0;
+        }
+
     }
 
     public void updateActivity(Conversation conversation) {

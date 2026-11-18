@@ -3,12 +3,15 @@ package com.ilham.portfolio.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -24,9 +27,22 @@ public class AiService {
 
         this.apiKey = apiKey;
 
+
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
+
+        JdkClientHttpRequestFactory requestFactory =
+                new JdkClientHttpRequestFactory(httpClient);
+
+        requestFactory.setReadTimeout(Duration.ofSeconds(30));
+
         this.restClient = RestClient.builder()
                 .baseUrl("https://generativelanguage.googleapis.com")
+                .requestFactory(requestFactory)
                 .build();
+
+
 
         ClassPathResource resource =
                 new ClassPathResource("portfolio-context.txt");
