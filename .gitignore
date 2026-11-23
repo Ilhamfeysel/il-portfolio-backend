@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Private CV files
+/src/main/resources/cv/*.pdf
+/downloaded-cv.pdf
