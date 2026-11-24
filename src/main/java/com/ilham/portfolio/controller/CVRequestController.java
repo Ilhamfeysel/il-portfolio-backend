@@ -1,12 +1,13 @@
 
-
 package com.ilham.portfolio.controller;
 
 import com.ilham.portfolio.dto.CVRequest;
 import com.ilham.portfolio.dto.CVRequestResponse;
+import com.ilham.portfolio.ratelimit.CVRateLimiter;
 import com.ilham.portfolio.service.CVDownloadTokenService;
 import com.ilham.portfolio.service.CVRequestService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
@@ -19,23 +20,33 @@ public class CVRequestController {
 
     private final CVRequestService cvRequestService;
     private final CVDownloadTokenService tokenService;
+    private final CVRateLimiter cvRateLimiter;
 
     public CVRequestController(
             CVRequestService cvRequestService,
-            CVDownloadTokenService tokenService) {
+            CVDownloadTokenService tokenService,
+            CVRateLimiter cvRateLimiter) {
 
         this.cvRequestService = cvRequestService;
         this.tokenService = tokenService;
+        this.cvRateLimiter = cvRateLimiter;
     }
 
     @PostMapping("/request")
     public ResponseEntity<CVRequestResponse> requestCV(
-            @Valid @RequestBody CVRequest request) {
+            @Valid @RequestBody CVRequest request,
+            HttpServletRequest httpRequest) {
 
-        // Notify portfolio owner first
+        // Identify the visitor by IP address
+        String visitorId = httpRequest.getRemoteAddr();
+
+        // Check rate limit before sending an email
+        cvRateLimiter.checkLimit(visitorId);
+
+        // Notify portfolio owner
         cvRequestService.processRequest(request);
 
-        // Generate token only after notification succeeds
+        // Generate a single-use download token
         String token = tokenService.generateToken();
 
         return ResponseEntity.ok(
@@ -46,6 +57,7 @@ public class CVRequestController {
         );
     }
 }
+
 
 
 
