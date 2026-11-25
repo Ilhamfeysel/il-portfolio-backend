@@ -1,4 +1,3 @@
-
 package com.ilham.portfolio.controller;
 
 import com.ilham.portfolio.dto.ChatRequest;
@@ -11,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/chat")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "${portfolio.cors.allowed-origin}")
 public class ChatController {
 
     private final ChatService chatService;

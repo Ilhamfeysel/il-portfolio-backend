@@ -1,9 +1,8 @@
-
 package com.ilham.portfolio.controller;
 
 import com.ilham.portfolio.service.CVDownloadTokenService;
-
-import org.springframework.core.io.ClassPathResource;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -12,8 +11,10 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/cv")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "${portfolio.cors.allowed-origin}")
 public class CVDownloadController {
+    @Value("${portfolio.cv.file-path}")
+    private String cvFilePath;
 
     private final CVDownloadTokenService tokenService;
 
@@ -26,9 +27,7 @@ public class CVDownloadController {
     public ResponseEntity<Resource> downloadCV(
             @RequestParam String token) {
 
-        Resource cv = new ClassPathResource(
-                "cv/Ilham_Feysel_CV.pdf"
-        );
+        Resource cv = new FileSystemResource(cvFilePath);
 
         if (!cv.exists() || !cv.isReadable()) {
             return ResponseEntity.notFound().build();

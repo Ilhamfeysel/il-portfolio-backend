@@ -53,6 +53,10 @@ class CVRequestControllerTest {
         mockMvc = MockMvcBuilders
                 .standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
+                .addPlaceholderValue(
+                        "portfolio.cors.allowed-origin",
+                        "http://localhost:5173"
+                )
                 .build();
 
         when(tokenService.generateToken())

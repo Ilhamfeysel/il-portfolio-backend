@@ -1,4 +1,3 @@
-
 package com.ilham.portfolio.controller;
 
 import com.ilham.portfolio.dto.CVRequest;
@@ -15,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/cv")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "${portfolio.cors.allowed-origin}")
 public class CVRequestController {
 
     private final CVRequestService cvRequestService;
