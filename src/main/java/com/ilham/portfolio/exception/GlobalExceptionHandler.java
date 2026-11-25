@@ -1,6 +1,6 @@
-
 package com.ilham.portfolio.exception;
 
+import com.ilham.portfolio.service.CVEmailException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -83,6 +83,19 @@ public class GlobalExceptionHandler {
                         "Too many requests. Please try again later."
                 ));
     }
+
+    @ExceptionHandler(CVEmailException.class)
+    public ResponseEntity<Map<String, String>> handleCVEmailError(
+            CVEmailException exception) {
+
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of(
+                        "error",
+                        "CV requests are temporarily unavailable. Please try again later."
+                ));
+    }
+
 
 
 

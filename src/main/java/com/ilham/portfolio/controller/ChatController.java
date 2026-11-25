@@ -1,4 +1,3 @@
-
 package com.ilham.portfolio.controller;
 
 import com.ilham.portfolio.dto.ChatRequest;
@@ -7,13 +6,11 @@ import com.ilham.portfolio.ratelimit.RateLimiter;
 import com.ilham.portfolio.service.ChatService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/chat")
+@CrossOrigin(origins = "${portfolio.cors.allowed-origin}")
 public class ChatController {
 
     private final ChatService chatService;
